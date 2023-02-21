@@ -1,0 +1,22 @@
+C:\Users\ericer\Documents\Rain World\Code Modding\Mods\Bro748\ONHStuff\ONHStuff\bin\Debug\ONHStuff.dll
+C:\Users\ericer\Documents\Rain World\Code Modding\Mods\Bro748\ONHStuff\ONHStuff\bin\Debug\ONHStuff.pdb
+C:\Users\ericer\Documents\Rain World\Code Modding\Mods\Bro748\ONHStuff\ONHStuff\obj\Debug\ONHStuff.csproj.AssemblyReference.cache
+C:\Users\ericer\Documents\Rain World\Code Modding\Mods\Bro748\ONHStuff\ONHStuff\obj\Debug\ONHStuff.csproj.CoreCompileInputs.cache
+C:\Users\ericer\Documents\Rain World\Code Modding\Mods\Bro748\ONHStuff\ONHStuff\obj\Debug\ONHStuff.dll
+C:\Users\ericer\Documents\Rain World\Code Modding\Mods\Bro748\ONHStuff\ONHStuff\obj\Debug\ONHStuff.pdb
+C:\Users\ericer\Documents\Rain World\Code Modding\Mods\Bro748\ONHStuff\ONHStuff\bin\Debug\EnumExtender.dll
+C:\Users\ericer\Documents\Rain World\Code Modding\Mods\Bro748\ONHStuff\ONHStuff\obj\Debug\ONHStuff.csproj.CopyComplete
+C:\Users\ericer\Documents\Rain World\Code Modding\Mods\Bro748\ONHStuff\ONHStuff\bin\Debug\Partiality.dll
+C:\Users\ericer\Documents\Rain World\Code Modding\Mods\Bro748\ONHStuff\ONHStuff\bin\Debug\HOOKS-Assembly-CSharp.dll
+C:\Users\ericer\Documents\Rain World\Code Modding\Downpour\ONHStuff\ONHStuff\obj\Debug\ONHStuff.csproj.AssemblyReference.cache
+C:\Users\ericer\Documents\Rain World\Code Modding\Downpour\ONHStuff\ONHStuff\obj\Debug\ONHStuff.csproj.CoreCompileInputs.cache
+C:\Users\ericer\Documents\Rain World\Code Modding\Downpour\ONHStuff\ONHStuff\obj\Debug\ONHStuff.dll
+C:\Users\ericer\Documents\Rain World\Code Modding\Downpour\ONHStuff\ONHStuff\obj\Debug\ONHStuff.pdb
+C:\Users\ericer\Documents\Rain World\Code Modding\Downpour\ONHStuff\ONHStuff\bin\Debug\ONHStuff.dll
+C:\Users\ericer\Documents\Rain World\Code Modding\Downpour\ONHStuff\ONHStuff\bin\Debug\ONHStuff.pdb
+C:\Users\ericer\Documents\Rain World Documents\Code Modding\Downpour\ONHStuff\ONHStuff\bin\Debug\ONHStuff.dll
+C:\Users\ericer\Documents\Rain World Documents\Code Modding\Downpour\ONHStuff\ONHStuff\bin\Debug\ONHStuff.pdb
+C:\Users\ericer\Documents\Rain World Documents\Code Modding\Downpour\ONHStuff\ONHStuff\obj\Debug\ONHStuff.csproj.AssemblyReference.cache
+C:\Users\ericer\Documents\Rain World Documents\Code Modding\Downpour\ONHStuff\ONHStuff\obj\Debug\ONHStuff.csproj.CoreCompileInputs.cache
+C:\Users\ericer\Documents\Rain World Documents\Code Modding\Downpour\ONHStuff\ONHStuff\obj\Debug\ONHStuff.dll
+C:\Users\ericer\Documents\Rain World Documents\Code Modding\Downpour\ONHStuff\ONHStuff\obj\Debug\ONHStuff.pdb
