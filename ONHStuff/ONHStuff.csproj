@@ -10,7 +10,7 @@
     <RootNamespace>ONHStuff</RootNamespace>
     <AssemblyName>ONHStuff</AssemblyName>
     <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
-    <LangVersion>9.0</LangVersion>
+    <LangVersion>11.0</LangVersion>
     <FileAlignment>512</FileAlignment>
     <Deterministic>true</Deterministic>
     <TargetFrameworkProfile />
@@ -84,19 +84,26 @@
       <HintPath>..\..\..\..\..\..\..\..\Program Files (x86)\Steam\steamapps\common\Rain World\RainWorld_Data\Managed\UnityEngine.dll</HintPath>
       <Private>False</Private>
     </Reference>
+    <Reference Include="UnityEngine.AssetBundleModule">
+      <HintPath>..\..\..\..\..\..\..\..\Program Files (x86)\Steam\steamapps\common\Rain World\RainWorld_Data\Managed\UnityEngine.AssetBundleModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
     <Reference Include="UnityEngine.CoreModule">
       <HintPath>..\..\..\..\..\..\..\..\Program Files (x86)\Steam\steamapps\common\Rain World\RainWorld_Data\Managed\UnityEngine.CoreModule.dll</HintPath>
       <Private>False</Private>
     </Reference>
+    <Reference Include="UnityEngine.InputLegacyModule">
+      <HintPath>..\..\..\..\..\..\..\..\Program Files (x86)\Steam\steamapps\common\Rain World\RainWorld_Data\Managed\UnityEngine.InputLegacyModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="CustomDataPearls.cs" />
-    <Compile Include="CustomRegionsStuff.cs" />
+    <Compile Include="ForcePriority.cs" />
+    <Compile Include="ReverseCat.cs" />
+    <Compile Include="RevSupport.cs" />
     <Compile Include="SuperSlopeObj.cs" />
     <Compile Include="ONHObjects.cs" />
     <Compile Include="CreatureBehaviors.cs" />
-    <Compile Include="FunnySlug.cs" />
-    <Compile Include="AttachedField.cs" />
     <Compile Include="ONHStuff.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>

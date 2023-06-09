@@ -17,7 +17,10 @@ namespace ONHStuff
             RegisterManagedObject<IncineratorSpawnerObj, IncineratorSpawnerData, ManagedRepresentation>("ConstantSpearSpawner", "ONHStuff");
             RegisterFullyManagedObjectType(new ManagedField[] { }, typeof(ElecGateBatteryPosObj), "ElecGateBatteryPos", "ONHStuff");
             On.RegionGate.Update += RegionGate_Update;
+
         }
+
+        public static RoomSettings.RoomEffect.Type glowPresence = new(nameof(glowPresence), true);
 
         private static void RegionGate_Update(On.RegionGate.orig_Update orig, RegionGate self, bool eu)
         {

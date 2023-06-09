@@ -5,6 +5,7 @@ using System.Text;
 using UnityEngine;
 using RWCustom;
 using static Pom.Pom;
+using System.Runtime.CompilerServices;
 
 namespace ONHStuff
 {
@@ -30,7 +31,7 @@ namespace ONHStuff
 			if (self.owner is Creature && self.owner is not Player)
 			{ return; }
 
-			onSlopeAngle.Set(self, 0f);
+			self.OnSlopeAngle().Value = 0f;
 
 			foreach (PlacedObject pObj in self.owner.room.roomSettings.placedObjects)
 			{
@@ -87,7 +88,7 @@ namespace ONHStuff
 						self.vel.x = self.vel.x + Mathf.Abs(self.vel.y) * Mathf.Clamp(0.5f - self.owner.surfaceFriction, 0f, 0.5f) * (float)num * 0.2f;
 						self.vel.y = 0f;
 						self.onSlope = num;
-						onSlopeAngle.Set(self, (float)((angle - 90f) * (Math.PI / 180.0)));
+						self.OnSlopeAngle().Value = (float)((angle - 90f) * (Math.PI / 180.0));
 						self.slopeRad = self.TerrainRad - 1f;
 					}
 
@@ -155,10 +156,10 @@ namespace ONHStuff
 		{
 			orig(self);
 
-			if ((self.owner.bodyChunks[1].ContactPoint.y == -1 || self.player.animation == Player.AnimationIndex.StandOnBeam) && onSlopeAngle.TryGet(self.owner.bodyChunks[1], out float angle) && angle != 0f)
+			if ((self.owner.bodyChunks[1].ContactPoint.y == -1 || self.player.animation == Player.AnimationIndex.StandOnBeam) && self.owner.bodyChunks[1].OnSlopeAngle().Value != 0f)
 			{
 				//Debug.Log("legsDirection " + angle);
-				self.legsDirection = new Vector2((float)Math.Cos(angle), (float)Math.Sin(angle));
+				self.legsDirection = new Vector2((float)Math.Cos(self.owner.bodyChunks[1].OnSlopeAngle().Value), (float)Math.Sin(self.owner.bodyChunks[1].OnSlopeAngle().Value));
 				self.legsDirection.Normalize();
 			}
 		}
@@ -170,7 +171,7 @@ namespace ONHStuff
 		/// <param name="self"></param>
 		private static void BodyChunk_Update(On.BodyChunk.orig_Update orig, BodyChunk self)
 		{
-			onSlopeAngle.Set(self, 0f);
+			self.OnSlopeAngle().Value = 0f;
 			
 				orig(self);
 			
@@ -188,7 +189,7 @@ namespace ONHStuff
 			if (self.owner is Creature && self.owner is not Player)
 			{ return; }
 
-			onSlopeAngle.Set(self, 0f);
+			self.OnSlopeAngle().Value = 0f;
 
 			foreach (PlacedObject pObj in self.owner.room.roomSettings.placedObjects)
 			{
@@ -245,7 +246,7 @@ namespace ONHStuff
 						self.vel.x = self.vel.x + Mathf.Abs(self.vel.y) * Mathf.Clamp(0.5f - self.owner.surfaceFriction, 0f, 0.5f) * (float)num * 0.2f;
 						self.vel.y = 0f;
 						self.onSlope = num;
-						onSlopeAngle.Set(self, (float)((angle - 90f) * (Math.PI / 180.0)));
+						self.OnSlopeAngle().Value = (float)((angle - 90f) * (Math.PI / 180.0));
 						self.slopeRad = self.TerrainRad - 1f;
 					}
 
@@ -484,7 +485,9 @@ namespace ONHStuff
 
 		public static float steepnessCheck;
 
-		public static Utils.AttachedField<BodyChunk, float> onSlopeAngle = new Utils.AttachedField<BodyChunk, float>();
+		public static ConditionalWeakTable<BodyChunk, StrongBox<float>> _OnSlopeAngle = new();
+
+		public static StrongBox<float> OnSlopeAngle(this BodyChunk p) => _OnSlopeAngle.GetValue(p, _ => new(0f));
 
 	}
 

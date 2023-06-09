@@ -16,6 +16,7 @@ using System.Threading;
 
 using System.Security;
 using System.Security.Permissions;
+
 [module: UnverifiableCode]
 [assembly: SecurityPermission(SecurityAction.RequestMinimum, SkipVerification = true)]
 
@@ -26,47 +27,95 @@ namespace ONHStuff
 	[BepInPlugin("bro.onhstuff", "ONHStuff", "0.9.0")]    // (GUID, mod name, mod version)
 	public class ONHStuff : BaseUnityPlugin
 	{
-		public void OnEnable()
-		{
-            On.RainWorld.OnModsInit += RainWorld_OnModsInit;
-			ONHStuffEnums.RegisterValues();
-		}
+		public BepInEx.Logging.ManualLogSource _Logger => Logger;
+
+		public static ONHStuff plugin;
+
+        public static readonly string MOD_ID = "onh";
+        public void OnEnable()
+        {
+			try
+			{
+				plugin = this;
+				//RevSupport.Apply();
+				On.ModManager.RefreshModsLists += ForcePriority.ModManager_RefreshModsLists;
+				On.RainWorld.OnModsInit += RainWorld_OnModsInit;
+				//ReverseCat.Enable();
+			}
+			catch (Exception e) { Logger.LogError(e); }
+			}
+
+		static bool init = false;
 
         private void RainWorld_OnModsInit(On.RainWorld.orig_OnModsInit orig, RainWorld self)
         {
 			orig(self);
-			/* This is called when the mod is loaded. */
-			CreatureBehaviors.ApplyHooks();
-			ONHObjects.Apply();
-			SuperSlopeHooks.Apply();
-			//CustomRegionsStuff.Apply();
-			CustomDataPearls.Apply();
-			//save progression, don't show ONH images if player's been to FN gate
-			//On.Room.Loaded += ONHProgressionSave;
-			On.ActiveTriggerChecker.FireEvent += StopProjectedImageHook;
+			try { 
+            ForcePriority.CheckIfFileForceOverrideIsNecessary();
+            //ForcePriority.CheckIfMapsCopyShouldBeDoneAndDoIt();
+            }
+            catch (Exception e) { Logger.LogError(e); }
+            try
+            {
+                ONHStuffEnums.UnregisterValues();
+                ONHStuffEnums.RegisterValues();
+                if (init) return;
+				init = true;
+				/* This is called when the mod is loaded. */
+				//RevSupport.LoadBundle(self);
+				CreatureBehaviors.ApplyHooks();
+				ONHObjects.Apply();
+				SuperSlopeHooks.Apply();
+				//CustomDataPearls.Apply();
+				//save progression, don't show ONH images if player's been to FN gate
+				//On.Room.Loaded += ONHProgressionSave;
+				On.ActiveTriggerChecker.FireEvent += StopProjectedImageHook;
 
-			On.OverseerHolograms.OverseerHologram.ForcedDirectionPointer.ctor += PointerHook;
+				On.OverseerHolograms.OverseerHologram.ForcedDirectionPointer.ctor += PointerHook;
 
-			//On.Overseer.TryAddHologram += HoloHook;
-			On.ReliableIggyDirection.Update += StopReliableDirection;
-			On.Overseer.TryAddHologram += IggyShutUp;
+				//On.Overseer.TryAddHologram += HoloHook;
+				On.ReliableIggyDirection.Update += StopReliableDirection;
+				On.Overseer.TryAddHologram += IggyShutUp;
 
-			//please don't stop the music
-			On.ActiveTriggerChecker.FireEvent += FireMusicHook;
-			On.Music.MusicPlayer.RainRequestStopSong += RainStopSongHook;
+				//please don't stop the music
+				On.ActiveTriggerChecker.FireEvent += FireMusicHook;
+				On.Music.MusicPlayer.RainRequestStopSong += RainStopSongHook;
+                On.RainCycle.GetDesiredCycleLength += RainCycle_GetDesiredCycleLength;
 
-			Debug.Log(AssetManager.ResolveFilePath("text" + Path.DirectorySeparatorChar + "pearlData"));
-			//On.Overseer.Update += UpdateHook;
+				//On.Overseer.Update += UpdateHook;
 
 
-			/*new Hook(
-			typeof(OverseerGraphics).GetProperty("MainColor", BindingFlags.Instance | BindingFlags.Public).GetGetMethod(),
+				/*new Hook(
+				typeof(OverseerGraphics).GetProperty("MainColor", BindingFlags.Instance | BindingFlags.Public).GetGetMethod(),
 
-			typeof(CustomProjections).GetMethod("GetMainColor", BindingFlags.Static | BindingFlags.Public));*/
+				typeof(CustomProjections).GetMethod("GetMainColor", BindingFlags.Static | BindingFlags.Public));*/
 
-			//spawn Iggy in Subterranean no matter what
-			//On.WorldLoader.GeneratePopulation += WorldLoader_GeneratePopulation;
+				//spawn Iggy in Subterranean no matter what
+				//On.WorldLoader.GeneratePopulation += WorldLoader_GeneratePopulation;
+			}
+			catch (Exception e) { Logger.LogError(e); }
 		}
+
+        private int RainCycle_GetDesiredCycleLength(On.RainCycle.orig_GetDesiredCycleLength orig, RainCycle self)
+        {
+            if (!self.world.singleRoomWorld && self.world.game.IsStorySession && 
+				(self.world.game.session as StoryGameSession).saveState.saveStateNumber == MoreSlugcats.MoreSlugcatsEnums.SlugcatStatsName.Rivulet && 
+				!self.world.game.GetStorySession.saveState.miscWorldSaveData.pebblesEnergyTaken)
+            {
+                bool useRegularCycle = false;
+                foreach (string region in ONHRegions)
+                {
+                    if (self.world.region.name == region && region != "AY")
+                    { useRegularCycle = true; }
+                }
+
+                if (useRegularCycle)
+                {
+                    return orig(self) * 2;
+                }
+            }
+            return orig(self);
+        }
 
         private void IggyShutUp(On.Overseer.orig_TryAddHologram orig, Overseer self, OverseerHolograms.OverseerHologram.Message message, Creature communicateWith, float importance)
         {
@@ -280,6 +329,18 @@ namespace ONHStuff
 
 		}
 
+		public static List<string> ONHRegions = new List<string>() {
+			"FN",
+			"CA",
+			"CF",
+			"VI",
+			"MA",
+			"OS",
+			"ME",
+			"AY",
+			"VU"
+		};
+
 
 
 		public static class ONHStuffEnums
@@ -288,67 +349,11 @@ namespace ONHStuff
 			public static void RegisterValues()
 			{
 				Grapple = new ReliableIggyDirection.ReliableIggyDirectionData.Symbol("Grapple", true);
-				/*SafariUnlockID.CA = new MultiplayerUnlocks.SafariUnlockID("CA", true);
-				SafariUnlockID.CF = new MultiplayerUnlocks.SafariUnlockID("CF", true);
-				SafariUnlockID.VI = new MultiplayerUnlocks.SafariUnlockID("VI", true);
-				SafariUnlockID.MA = new MultiplayerUnlocks.SafariUnlockID("MA", true);
-				SafariUnlockID.OS = new MultiplayerUnlocks.SafariUnlockID("OS", true);
-				SafariUnlockID.ME = new MultiplayerUnlocks.SafariUnlockID("ME", true);
-				SafariUnlockID.AY = new MultiplayerUnlocks.SafariUnlockID("AY", true);*/
-
-				DataPearlType.CF_Intake = new DataPearl.AbstractDataPearl.DataPearlType("cf_intake", true);
-				DataPearlType.OS_Refinery = new DataPearl.AbstractDataPearl.DataPearlType("os_refinery", true);
-
-			}
+            }
 
 			public static void UnregisterValues()
 			{
 				if (Grapple != null) { Grapple.Unregister(); Grapple = null; }
-				if (SafariUnlockID.CA != null) { SafariUnlockID.CA.Unregister(); SafariUnlockID.CA = null; }
-				if (SafariUnlockID.CF != null) { SafariUnlockID.CF.Unregister(); SafariUnlockID.CF = null; }
-				if (SafariUnlockID.VI != null) { SafariUnlockID.VI.Unregister(); SafariUnlockID.VI = null; }
-				if (SafariUnlockID.MA != null) { SafariUnlockID.MA.Unregister(); SafariUnlockID.MA = null; }
-				if (SafariUnlockID.OS != null) { SafariUnlockID.OS.Unregister(); SafariUnlockID.OS = null; }
-				if (SafariUnlockID.ME != null) { SafariUnlockID.ME.Unregister(); SafariUnlockID.ME = null; }
-				if (SafariUnlockID.MA != null) { SafariUnlockID.MA.Unregister(); SafariUnlockID.MA = null; }
-			}
-
-			public static Conversation.ID RegisterConversations(string name)
-			{
-				return new Conversation.ID(name, true);
-			}
-
-			public static class SafariUnlockID
-			{
-
-				// Token: 0x04000533 RID: 1331
-				public static MultiplayerUnlocks.SafariUnlockID CA;
-
-				// Token: 0x04000534 RID: 1332
-				public static MultiplayerUnlocks.SafariUnlockID CF;
-
-				// Token: 0x04000535 RID: 1333
-				public static MultiplayerUnlocks.SafariUnlockID VI;
-
-				// Token: 0x04000536 RID: 1334
-				public static MultiplayerUnlocks.SafariUnlockID MA;
-
-				// Token: 0x04000537 RID: 1335
-				public static MultiplayerUnlocks.SafariUnlockID OS;
-
-				// Token: 0x04000538 RID: 1336
-				public static MultiplayerUnlocks.SafariUnlockID ME;
-
-				// Token: 0x04000539 RID: 1337
-				public static MultiplayerUnlocks.SafariUnlockID AY;
-			}
-			
-
-			public static class DataPearlType
-			{
-				public static DataPearl.AbstractDataPearl.DataPearlType CF_Intake;
-
-				public static DataPearl.AbstractDataPearl.DataPearlType OS_Refinery;
 			}
 		}
 	}

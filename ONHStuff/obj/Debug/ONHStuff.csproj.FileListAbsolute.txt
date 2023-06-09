@@ -20,3 +20,6 @@ C:\Users\ericer\Documents\Rain World Documents\Code Modding\Downpour\ONHStuff\ON
 C:\Users\ericer\Documents\Rain World Documents\Code Modding\Downpour\ONHStuff\ONHStuff\obj\Debug\ONHStuff.csproj.CoreCompileInputs.cache
 C:\Users\ericer\Documents\Rain World Documents\Code Modding\Downpour\ONHStuff\ONHStuff\obj\Debug\ONHStuff.dll
 C:\Users\ericer\Documents\Rain World Documents\Code Modding\Downpour\ONHStuff\ONHStuff\obj\Debug\ONHStuff.pdb
+C:\Users\ericer\Documents\Rain World Documents\Code Modding\Downpour\ONHStuff\ONHStuff\bin\Debug\UnityEngine.AssetBundleModule.dll
+C:\Users\ericer\Documents\Rain World Documents\Code Modding\Downpour\ONHStuff\ONHStuff\bin\Debug\UnityEngine.InputLegacyModule.dll
+C:\Users\ericer\Documents\Rain World Documents\Code Modding\Downpour\ONHStuff\ONHStuff\obj\Debug\ONHStuff.csproj.CopyComplete
