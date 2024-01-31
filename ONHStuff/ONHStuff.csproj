@@ -99,6 +99,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="ForcePriority.cs" />
+    <Compile Include="InvJunk.cs" />
     <Compile Include="ReverseCat.cs" />
     <Compile Include="RevSupport.cs" />
     <Compile Include="SuperSlopeObj.cs" />

@@ -20,86 +20,132 @@ namespace ONHStuff
             On.Player.NewRoom += Player_NewRoom;
             On.BackgroundScene.Update += BackgroundScene_Update;
             On.Room.Loaded += Room_Loaded;
+            On.BackgroundScene.Simple2DBackgroundIllustration.DrawSprites += Simple2DBackgroundIllustration_DrawSprites;
+        }
+
+        private static void Simple2DBackgroundIllustration_DrawSprites(On.BackgroundScene.Simple2DBackgroundIllustration.orig_DrawSprites orig, BackgroundScene.Simple2DBackgroundIllustration self, RoomCamera.SpriteLeaser sLeaser, RoomCamera rCam, float timeStacker, Vector2 camPos)
+        {
+            orig(self, sLeaser, rCam, timeStacker, camPos);
+            if (self.Rotation().Value != float.MaxValue)
+            {
+                sLeaser.sprites[0].rotation = self.Rotation().Value;
+            }
         }
 
         private static void Room_Loaded(On.Room.orig_Loaded orig, Room self)
         {
+            orig(self);
             try
             {
-                orig(self);
-                bool VU = self.world.region.name == "VU";
-                if (self.abstractRoom.name != "SI_A07" && !VU) return;
-                for (int num3 = 0; num3 < self.roomSettings.effects.Count; num3++)
-                {
-                    if (self.roomSettings.effects[num3].type == RoomSettings.RoomEffect.Type.AboveCloudsView)
-                    {
-                        foreach (UpdatableAndDeletable uad in self.updateList)
-                        {
-                            if (uad is AboveCloudsView ac)
-                            {
-                                ac.Rotation().Value = VU? 270f : 180f;
-                                //ac.Position().Value = new(1366f, 768f);
-                                ac.Position().Value = VU ? new(1366f + 150f, -299f) : new(1366f, 768f + 300f);
-
-                                ac.elements.Remove(ac.daySky);
-                                ac.elements.Remove(ac.duskSky);
-                                ac.elements.Remove(ac.nightSky);
-                                break;
-                            }
-                        }
-                        AboveCloudsView acv = new(self, self.roomSettings.effects[num3]);
-                        self.AddObject(acv);
-                        acv.Rotation().Value = VU? 90f : 0f;
-                        acv.Position().Value = VU? new(-150f, 1067f) : new(0f, -300f);
-                        /*if (acv != null)
-                        {
-                            Debug.Log("double");
-                            self.AddObject(acv);
-                            acv.Rotation().Value = 0f;
-                            acv.Position().Value = new(0f, 0f);
-                        }
-                        else { Debug.Log("not double"); }*/
-                        break;
-                    }
-                }
+                if (self.world.singleRoomWorld || self.world.region.name != "VU") return;
+                //if (self.abstractRoom.name != "SI_A07" && !VU) return;
+                SetupSplitSky(self, 270f);
             }
             catch (Exception e) { Debug.LogError(e); }
         }
 
+        private static void SetupSplitSky(Room self, float rotation)
+        {
+            for (int num3 = 0; num3 < self.roomSettings.effects.Count; num3++)
+            {
+                if (self.roomSettings.effects[num3].type == RoomSettings.RoomEffect.Type.AboveCloudsView)
+                {
+                    Vector2 centerOfScreen = new(1366f / 2f, 768f / 2f);
+                    foreach (UpdatableAndDeletable uad in self.updateList)
+                    {
+                        if (uad is AboveCloudsView ac)
+                        {
+                            ac.RotateClouds(rotation);
+                            //ac.Rotation().Value = VU ? 270f : 180f;
+                            //ac.Position().Value = new(1366f, 768f);
+                            //ac.Position().Value = VU ? new(1366f + 150f, -299f) : new(1366f, 768f + 300f);
+
+                            ac.elements.Remove(ac.daySky);
+                            ac.elements.Remove(ac.duskSky);
+                            ac.elements.Remove(ac.nightSky);
+                            break;
+                        }
+                    }
+                    AboveCloudsView acv = new(self, self.roomSettings.effects[num3]);
+                    self.AddObject(acv);
+                    acv.RotateClouds(rotation - 180f);
+                    //acv.Rotation().Value = VU ? 90f : 0f;
+                    //acv.Position().Value = VU ? new(-150f, 1067f) : new(0f, -300f);
+                    /*if (acv != null)
+                    {
+                        Debug.Log("double");
+                        self.AddObject(acv);
+                        acv.Rotation().Value = 0f;
+                        acv.Position().Value = new(0f, 0f);
+                    }
+                    else { Debug.Log("not double"); }*/
+                    break;
+                }
+            }
+        }
+
         private static void BackgroundScene_Update(On.BackgroundScene.orig_Update orig, BackgroundScene self, bool eu)
         {
-            bool added = !self.elementsAddedToRoom && self.Rotation().Value != float.MaxValue;
+            bool rotated = self.Rotation().Value != float.MaxValue;
+
+            bool added = !self.elementsAddedToRoom && rotated;
             orig(self, eu);
             if (added)
             {
-                FlipContainer container = new();
-                container.rotation = self.Rotation().Value;
-                container.position = self.Position().Value;
-                self.room.AddObject(container);
+                self.Container().rotation = self.Rotation().Value;
+                self.Container().position = self.Position().Value;
+                self.room.AddObject(self.Container());
                 foreach (BackgroundScene.BackgroundSceneElement element in self.elements.OrderByDescending(x => x.depth))
                 {
                     if (self is AboveCloudsView acv && (element == acv.daySky || element == acv.duskSky || element == acv.nightSky)) continue;
                     if (self is RoofTopView rtv && (element == rtv.daySky || element == rtv.duskSky || element == rtv.nightSky)) continue;
-                    container.drawables.Add(element);
+                    self.Container().drawables.Add(element);
+                }
+            }
+            if (rotated && self.room.abstractRoom.name == "VU_TOP")
+            {
+                self.RotateClouds(self.Rotation().Value + 0.02f);
+                self.Container().rotation = self.Rotation().Value;
+                self.Container().position = self.Position().Value;
+                if (self is AboveCloudsView acv)
+                {
+                    acv.daySky.Rotation().Value = self.Container().rotation - 90f;
                 }
             }
         }
-                   // if (self is AboveCloudsView acv && (element == acv.daySky || element == acv.duskSky || element == acv.nightSky)) continue;
-                    // if (self is RoofTopView rtv && (element == rtv.daySky || element == rtv.duskSky || element == rtv.nightSky)) continue;
+        // if (self is AboveCloudsView acv && (element == acv.daySky || element == acv.duskSky || element == acv.nightSky)) continue;
+        // if (self is RoofTopView rtv && (element == rtv.daySky || element == rtv.duskSky || element == rtv.nightSky)) continue;
+
+        public static void RotateClouds(this BackgroundScene p, float rotation)
+        {
+            Vector2 centerOfScreen = new(1366f / 2f, 768f / 2f);
+            p.Rotation().Value = rotation;
+            p.Position().Value = centerOfScreen + (RWCustom.Custom.DegToVec(rotation - 180f) * 833f) - (RWCustom.Custom.DegToVec(rotation + 90f) * 683f);
+        }
 
         private static ConditionalWeakTable<BackgroundScene, StrongBox<float>> _Rotation = new();
 
         public static StrongBox<float> Rotation(this BackgroundScene p) => _Rotation.GetValue(p, _ => new(float.MaxValue));
 
 
+        private static ConditionalWeakTable<BackgroundScene.Simple2DBackgroundIllustration, StrongBox<float>> _Rotation2 = new();
+
+        public static StrongBox<float> Rotation(this BackgroundScene.Simple2DBackgroundIllustration p) => _Rotation2.GetValue(p, _ => new(float.MaxValue));
+
+
         private static ConditionalWeakTable<BackgroundScene, StrongBox<Vector2>> _Position = new();
 
         public static StrongBox<Vector2> Position(this BackgroundScene p) => _Position.GetValue(p, _ => new(new Vector2()));
 
+
+        private static ConditionalWeakTable<BackgroundScene, FlipContainer> _Container = new();
+
+        public static FlipContainer Container(this BackgroundScene p) => _Container.GetValue(p, _ => new());
+
         private static void Player_NewRoom(On.Player.orig_NewRoom orig, Player self, Room newRoom)
         {
             orig(self, newRoom);
-            SetRoomFlip(newRoom, self.Reverse().reverseGravity);
+            //SetRoomFlip(newRoom, self.Reverse().reverseGravity);
         }
 
         private static void SetRoomFlip(Room room, bool flip)
@@ -120,21 +166,33 @@ namespace ONHStuff
 
         private static void Player_Update(On.Player.orig_Update orig, Player self, bool eu)
         {
-            orig(self, eu);
-            if (Input.GetKey(KeyCode.Backspace) && !button)
+            if (Input.GetKey(KeyCode.Backspace) && Input.GetKey(KeyCode.LeftControl) && Input.GetKey(KeyCode.LeftAlt) && !button)
             {
                 button = true;
 
                 self.Reverse().reverseGravity = !self.Reverse().reverseGravity;
                 if (self.room != null)
                 {
-                    SetRoomFlip(self.room, self.Reverse().reverseGravity);
+                    //SetRoomFlip(self.room, self.Reverse().reverseGravity);
                 }
             }
             else if (!Input.GetKey(KeyCode.Backspace))
             {
                 button = false;
             }
+
+            if (self.slugcatStats.name == MoreSlugcats.MoreSlugcatsEnums.SlugcatStatsName.Sofanthiel)
+            {
+                if (self.room?.world.name == "CF" && !self.Reverse().reverseGravity)
+                {
+                    self.Reverse().reverseGravity = true;
+                }
+                else if (self.Reverse().reverseGravity && self.room?.world.name != "CF")
+                {
+                    self.Reverse().reverseGravity = false;
+                }
+            }
+            orig(self, eu);
         }
 
         static bool button = false;
@@ -227,7 +285,7 @@ namespace ONHStuff
         {
             
             sLeaser.containers[0].rotation = rotation;
-            sLeaser.containers[0].SetPosition(position);    
+            sLeaser.containers[0].SetPosition(position);
         }
 
         // Token: 0x0600005F RID: 95 RVA: 0x00004718 File Offset: 0x00002918

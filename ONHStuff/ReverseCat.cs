@@ -8,6 +8,7 @@ using System.Text;
 using System.Threading.Tasks;
 using UnityEngine;
 using Mono.Cecil.Cil;
+using System.Threading;
 
 namespace ONHStuff
 {
@@ -31,9 +32,20 @@ namespace ONHStuff
 
         public static readonly Vector2 defFake = new(float.MaxValue, float.MaxValue);
     }
+
+    /// <summary>
+    /// contains horrors beyond comprehension
+    /// </summary>
     internal class ReverseCat
     {
-        public static bool reversedProcessing = false;
+        private static bool _reversedProcessing = false;
+
+        private static Thread main;
+        public static bool reversedProcessing
+        {
+            get => _reversedProcessing && Thread.CurrentThread == main;
+            set => _reversedProcessing = value;
+        }
 
         // Todo maaaaaybe just maybe make it easier to get into ceiling pipes
         // that and spawn a grapple or two in outskirts
@@ -146,16 +158,31 @@ namespace ONHStuff
             if (self.Reverse().reverseGravity && self.room != null)
             {
                 Room room = self.room;
+
+                main = Thread.CurrentThread;
                 ReversePlayer(self, room);
                 try
                 {
                     orig(self, eu);
                 }
                 catch (Exception e) { Debug.LogException(e); }
-                // die if too far oob upwards too
-                // normally rooms with water would ignore this check (water bottom) but we still need to
-                // coordinates still reversed here
-                if (self.room != null && (self.bodyChunks[0].pos.y < -self.bodyChunks[0].restrictInRoomRange + 1f || self.bodyChunks[1].pos.y < -self.bodyChunks[1].restrictInRoomRange + 1f))
+
+                if (room.game.devToolsActive)
+                {
+                    bool flag4 = room.game.cameras[0].room == room || !ModManager.CoopAvailable;
+                    if (Input.GetKey("v") && flag4)
+                    {
+                        for (int num11 = 0; num11 < 2; num11++)
+                        {
+                            self.bodyChunks[num11].pos.y = room.PixelHeight - self.bodyChunks[num11].pos.y;
+                            self.bodyChunks[num11].lastPos = self.bodyChunks[num11].pos;
+                        }
+                    }
+                }
+                    // die if too far oob upwards too
+                    // normally rooms with water would ignore this check (water bottom) but we still need to
+                    // coordinates still reversed here
+                    if (self.room != null && (self.bodyChunks[0].pos.y < -self.bodyChunks[0].restrictInRoomRange + 1f || self.bodyChunks[1].pos.y < -self.bodyChunks[1].restrictInRoomRange + 1f))
                 {
                     self.Die();
                     self.Destroy();
@@ -164,6 +191,7 @@ namespace ONHStuff
                 if (self.slatedForDeletetion || self.room != room)
                     DeversePlayer(self, room);
                 // else un-needed because graphics will be updated and deverse happens on graphicsupdated
+
             }
             else
             {
@@ -730,6 +758,27 @@ namespace ONHStuff
                 c.RemoveRange(2);
             }
             else Debug.LogException(new Exception("Couldn't IL-hook Player_UpdateAnimation from VVVVVV cat")); // deffendisve progrmanig
+
+            if (c.TryGotoNext(MoveType.Before,
+                x => x.MatchLdarg(0),
+                x => x.MatchLdfld<Player>(nameof(Player.tubeWorm)),
+                x => x.MatchLdfld<TubeWorm>(nameof(TubeWorm.tongues)),
+                x => x.MatchLdcI4(0),
+                x => x.MatchLdelemRef(),
+                x => x.MatchCallvirt<TubeWorm.Tongue>("get_AttachedPos")
+                ))
+            {
+                c.Emit(OpCodes.Ldarg_0);
+                c.EmitDelegate((Vector2 orig, Player self) => 
+                {
+                    if (self.Reverse().reverseGravity && self.room != null)
+                    {
+                        orig.y = self.room.PixelHeight - orig.y;
+                    }
+                    return orig;
+                });
+            }
+            else Debug.LogException(new Exception("Couldn't IL-hook Player_UpdateAnimation from VVVVVV cat 2"));
         }
 
         // Determine deep-swim vs surface swim

@@ -15,31 +15,10 @@ namespace ONHStuff
         {
             RegisterManagedObject<FireFieldObj, FireFieldData, ManagedRepresentation>("FireField", "ONHStuff");
             RegisterManagedObject<IncineratorSpawnerObj, IncineratorSpawnerData, ManagedRepresentation>("ConstantSpearSpawner", "ONHStuff");
-            RegisterFullyManagedObjectType(new ManagedField[] { }, typeof(ElecGateBatteryPosObj), "ElecGateBatteryPos", "ONHStuff");
-            On.RegionGate.Update += RegionGate_Update;
 
         }
 
-        public static RoomSettings.RoomEffect.Type glowPresence = new(nameof(glowPresence), true);
-
-        private static void RegionGate_Update(On.RegionGate.orig_Update orig, RegionGate self, bool eu)
-        {
-            orig(self, eu);
-            foreach (PlacedObject pObj in self.room.roomSettings.placedObjects)
-            {
-                if (pObj.type.ToString() == "ElecGateBatteryPos" && self is ElectricGate eGate)
-                { eGate.meterHeight = pObj.pos.y; }
-            }
-        }
-
-        public static bool check = false;
-
-        internal class ElecGateBatteryPosObj : UpdatableAndDeletable
-        {
-            public ElecGateBatteryPosObj(PlacedObject pObj, Room room)
-            {
-            }
-        }
+        //public static RoomSettings.RoomEffect.Type glowPresence = new(nameof(glowPresence), true);
 
         internal class IncineratorSpawnerObj : UpdatableAndDeletable
         {

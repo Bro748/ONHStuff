@@ -37,15 +37,154 @@ namespace ONHStuff
 			try
 			{
 				plugin = this;
-				//RevSupport.Apply();
 				On.ModManager.RefreshModsLists += ForcePriority.ModManager_RefreshModsLists;
 				On.RainWorld.OnModsInit += RainWorld_OnModsInit;
-				//ReverseCat.Enable();
-			}
-			catch (Exception e) { Logger.LogError(e); }
+				ReverseCat.Enable();
+                RevSupport.Apply();
+				InvJunk.ApplyHooks();
+                On.Deer.Act += Deer_Act;
+                IL.Player.Update += Player_Update;
+                /* This is called when the mod is loaded. */
+                CreatureBehaviors.ApplyHooks();
+                ONHObjects.Apply();
+                SuperSlopeHooks.Apply();
+                //CustomDataPearls.Apply();
+                //save progression, don't show ONH images if player's been to FN gate
+                //On.Room.Loaded += ONHProgressionSave;
+                On.ActiveTriggerChecker.FireEvent += StopProjectedImageHook;
+
+                On.OverseerHolograms.OverseerHologram.ForcedDirectionPointer.ctor += PointerHook;
+
+                //On.Overseer.TryAddHologram += HoloHook;
+                On.ReliableIggyDirection.Update += StopReliableDirection;
+
+                //please don't stop the music
+                On.ActiveTriggerChecker.FireEvent += FireMusicHook;
+                On.Music.MusicPlayer.RainRequestStopSong += RainStopSongHook;
+                On.RainCycle.GetDesiredCycleLength += RainCycle_GetDesiredCycleLength;
+
+                //On.Overseer.Update += UpdateHook;
+
+
+                /*new Hook(
+				typeof(OverseerGraphics).GetProperty("MainColor", BindingFlags.Instance | BindingFlags.Public).GetGetMethod(),
+
+				typeof(CustomProjections).GetMethod("GetMainColor", BindingFlags.Static | BindingFlags.Public));*/
+
+                //spawn Iggy in Subterranean no matter what
+                //On.WorldLoader.GeneratePopulation += WorldLoader_GeneratePopulation;
+
+                BindingFlags flags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance;
+                new Hook(typeof(Water).GetProperty(nameof(Water.waveAmplitude), flags).GetGetMethod(true), WaveAmplitudeHook);
+                new Hook(typeof(Water).GetProperty(nameof(Water.waveLength), flags).GetGetMethod(true), WaveLengthHook);
+                new Hook(typeof(Water).GetProperty(nameof(Water.waveSpeed), flags).GetGetMethod(true), WaveSpeedHook);
+            }
+            catch (Exception e) { Logger.LogError(e); }
 			}
 
-		static bool init = false;
+        private void Deer_Act(On.Deer.orig_Act orig, Deer self, bool eu, float support, float forwardPower)
+        {
+			orig(self, eu, support, forwardPower);
+			if (self.eatCounter == 50)
+			{
+                if (self.eatObject == null || self.room?.abstractRoom.name.ToLower() != "depot" || !self.room.game.IsArenaSession)
+                { return; }
+
+                if (self.State.socialMemory == null) self.State.socialMemory = new SocialMemory();
+
+                self.State.socialMemory.GetOrInitiateRelationship(self.room.game.GetArenaGameSession.Players[0].ID).like += 0.9f;
+                Debug.Log($"deer happiness score: " + self.State.socialMemory.GetOrInitiateRelationship(self.room.game.Players[0].ID).like);
+            }
+        }
+
+        /// <summary>
+        /// allows sheltering in crawl hole shelters
+        /// </summary>
+        private void Player_Update(ILContext il)
+        {
+			var c = new ILCursor(il);
+            if (c.TryGotoNext(MoveType.After,
+                x => x.MatchCall<ShortcutData>("get_StartTile"),
+                x => x.MatchCall(typeof(Custom), nameof(Custom.ManhattanDistance)),
+                x => x.MatchLdcI4(6)
+                ))
+            {
+                c.Emit(OpCodes.Ldarg_0);
+                c.EmitDelegate((int orig, Player self) =>
+                {
+					int reg = Custom.ManhattanDistance(self.room.GetTilePosition(self.mainBodyChunk.pos), self.room.shortcuts[0].StartTile);
+
+                    for (int i = 0; i < self.bodyChunks.Length; i++)
+					{
+						if (self.bodyChunks[i] == self.mainBodyChunk) continue;
+						if (Custom.ManhattanDistance(self.room.GetTilePosition(self.mainBodyChunk.pos), self.room.shortcuts[0].StartTile) < reg)
+							return orig;
+					}
+					return orig - 1;
+                });
+            }
+            else
+            {
+                Logger.LogError("failed to ilhook player.update");
+            }
+            if (c.TryGotoNext(MoveType.After,
+
+                x => x.MatchBle(out _),
+				x => x.MatchLdsfld<ModManager>(nameof(ModManager.MMF))
+				))
+			{
+				c.Emit(OpCodes.Ldarg_0);
+				c.EmitDelegate((bool orig, Player self) =>
+				{
+					return orig && !CrawlSpaceOnly(self.room, self.abstractCreature.pos.Tile, new());
+				});
+			}
+			else
+			{
+				Logger.LogError("failed to ilhook player.update");
+			}
+        }
+
+        public static bool CrawlSpaceOnly(Room room, IntVector2 pos, HashSet<IntVector2> visited)
+        {
+            if (pos.x < 0 || pos.y < 0 || pos.x > room.Tiles.GetLength(0) || pos.y > room.Tiles.GetLength(1)) return true;
+            if (room.GetTile(pos).Solid || visited.Contains(pos)) return true;
+
+            if (!room.GetTile(pos + new IntVector2(-1, 0)).Solid &&
+                !room.GetTile(pos + new IntVector2(-1, -1)).Solid &&
+                !room.GetTile(pos + new IntVector2(0, -1)).Solid)
+            { return false; } //returns false if non-crawlspace is detected
+
+            visited.Add(pos);
+
+            if (!CrawlSpaceOnly(room, pos + new IntVector2(1, 0), visited)) return false;
+            if (!CrawlSpaceOnly(room, pos + new IntVector2(-1, 0), visited)) return false;
+            if (!CrawlSpaceOnly(room, pos + new IntVector2(0, 1), visited)) return false;
+            if (!CrawlSpaceOnly(room, pos + new IntVector2(0, -1), visited)) return false;
+
+            return true;
+        }
+
+        static float WaveAmplitudeHook(Func<Water, float> orig, Water self)
+        {
+			if(self.room?.abstractRoom.name.ToLower() == "shoreside rig")
+				return Mathf.LerpUnclamped(1f, 40f, self.room.roomSettings.WaveAmplitude);
+            return orig(self);
+        }
+        static float WaveLengthHook(Func<Water, float> orig, Water self)
+        {
+            if (self.room?.abstractRoom.name.ToLower() == "shoreside rig")
+                return Mathf.LerpUnclamped(50f, 750f, self.room.roomSettings.WaveLength);
+            return orig(self);
+        }
+        static float WaveSpeedHook(Func<Water, float> orig, Water self)
+        {
+            if (self.room?.abstractRoom.name.ToLower() == "shoreside rig")
+                return Mathf.LerpUnclamped(-0.033333335f, 0.033333335f, self.room.roomSettings.WaveSpeed);
+            return orig(self);
+        }
+
+        static bool init = false;
 
         private void RainWorld_OnModsInit(On.RainWorld.orig_OnModsInit orig, RainWorld self)
         {
@@ -61,91 +200,43 @@ namespace ONHStuff
                 ONHStuffEnums.RegisterValues();
                 if (init) return;
 				init = true;
-				/* This is called when the mod is loaded. */
-				//RevSupport.LoadBundle(self);
-				CreatureBehaviors.ApplyHooks();
-				ONHObjects.Apply();
-				SuperSlopeHooks.Apply();
-				//CustomDataPearls.Apply();
-				//save progression, don't show ONH images if player's been to FN gate
-				//On.Room.Loaded += ONHProgressionSave;
-				On.ActiveTriggerChecker.FireEvent += StopProjectedImageHook;
-
-				On.OverseerHolograms.OverseerHologram.ForcedDirectionPointer.ctor += PointerHook;
-
-				//On.Overseer.TryAddHologram += HoloHook;
-				On.ReliableIggyDirection.Update += StopReliableDirection;
-				On.Overseer.TryAddHologram += IggyShutUp;
-
-				//please don't stop the music
-				On.ActiveTriggerChecker.FireEvent += FireMusicHook;
-				On.Music.MusicPlayer.RainRequestStopSong += RainStopSongHook;
-                On.RainCycle.GetDesiredCycleLength += RainCycle_GetDesiredCycleLength;
-
-				//On.Overseer.Update += UpdateHook;
-
-
-				/*new Hook(
-				typeof(OverseerGraphics).GetProperty("MainColor", BindingFlags.Instance | BindingFlags.Public).GetGetMethod(),
-
-				typeof(CustomProjections).GetMethod("GetMainColor", BindingFlags.Static | BindingFlags.Public));*/
-
-				//spawn Iggy in Subterranean no matter what
-				//On.WorldLoader.GeneratePopulation += WorldLoader_GeneratePopulation;
-			}
+                RevSupport.LoadBundle(self);
+            }
 			catch (Exception e) { Logger.LogError(e); }
 		}
 
         private int RainCycle_GetDesiredCycleLength(On.RainCycle.orig_GetDesiredCycleLength orig, RainCycle self)
         {
-            if (!self.world.singleRoomWorld && self.world.game.IsStorySession && 
-				(self.world.game.session as StoryGameSession).saveState.saveStateNumber == MoreSlugcats.MoreSlugcatsEnums.SlugcatStatsName.Rivulet && 
-				!self.world.game.GetStorySession.saveState.miscWorldSaveData.pebblesEnergyTaken)
-            {
-                bool useRegularCycle = false;
-                foreach (string region in ONHRegions)
-                {
-                    if (self.world.region.name == region && region != "AY")
-                    { useRegularCycle = true; }
+			if (!self.world.singleRoomWorld && self.world.game.IsStorySession)
+			{
+				SlugcatStats.Name slugcat = (self.world.game.session as StoryGameSession).saveState.saveStateNumber;
+
+				if (slugcat == InvJunk.Inv && self.world.region.name == "FN")
+				{
+				return 3 * 40 * 60;
                 }
 
-                if (useRegularCycle)
-                {
-                    return orig(self) * 2;
-                }
-            }
+				if (slugcat == MoreSlugcats.MoreSlugcatsEnums.SlugcatStatsName.Rivulet && !self.world.game.GetStorySession.saveState.miscWorldSaveData.pebblesEnergyTaken)
+				{
+					bool useRegularCycle = false;
+					foreach (string region in ONHRegions)
+					{
+						if (self.world.region.name == region && region != "AY")
+						{ useRegularCycle = true; break; }
+					}
+
+					if (useRegularCycle)
+					{
+						return orig(self) * 2;
+					}
+				}
+			}
             return orig(self);
         }
 
-        private void IggyShutUp(On.Overseer.orig_TryAddHologram orig, Overseer self, OverseerHolograms.OverseerHologram.Message message, Creature communicateWith, float importance)
-        {
-			if (Regex.Split(self.room.abstractRoom.name, "_")[0] == "SB" && 
-				(message == OverseerHolograms.OverseerHologram.Message.Bats ||
-				message == OverseerHolograms.OverseerHologram.Message.DangerousCreature ||
-				message == OverseerHolograms.OverseerHologram.Message.Shelter ||
-				message == OverseerHolograms.OverseerHologram.Message.FoodObject))
-			{
-					//Debug.Log("Shut up, Iggy!");
-					return;
-			}
-
-			if (Regex.Split(self.room.abstractRoom.name, "_")[0] == "CC" &&
-				message == OverseerHolograms.OverseerHologram.Message.ProgressionDirection &&
-				ONHFolder() != null && File.Exists(LoadProjFile("ONHProgression", "txt"))
-				)
-				{
-				return;
-			}
-
-			orig(self, message, communicateWith, importance);
-		}
-
         private void StopReliableDirection(On.ReliableIggyDirection.orig_Update orig, ReliableIggyDirection self, bool eu)
         {
-			if (self.data.symbol == ONHStuff.ONHStuffEnums.Grapple &&
-				(self.room.game.Players.Any(ply => ply.realizedCreature?.grasps.Any(grasp => grasp?.grabbed is TubeWorm) ?? false ||
-                ONHFolder() != null && File.Exists(LoadProjFile("ONHProgression", "txt"))
-				)))
+			if (self.data.symbol == ONHStuffEnums.Grapple && self.room.game.Players.Any(ply => ply.realizedCreature?.grasps.Any(grasp => grasp?.grabbed is TubeWorm) ?? false))
 				
 			{
                 Debug.Log("Grapple already carried");
@@ -161,12 +252,12 @@ namespace ONHStuff
 
 		private void WorldLoader_GeneratePopulation(On.WorldLoader.orig_GeneratePopulation orig, WorldLoader self, bool fresh)
 		{
-			if (ONHFolder() != null && self is WorldLoader wl_self && wl_self.playerCharacter != SlugcatStats.Name.Red &&
-				!(wl_self.game.session as StoryGameSession).saveState.guideOverseerDead &&
-				!(wl_self.game.session as StoryGameSession).saveState.miscWorldSaveData.playerGuideState.angryWithPlayer &&
-				(wl_self.world.region.name == "SB" || wl_self.world.region.name == "LF" ||
-				(wl_self.world.region.name == "CC" && (wl_self.game.session as StoryGameSession).saveState.miscWorldSaveData.SSaiConversationsHad < 1)) &&
-				!File.Exists(LoadProjFile("ONHProgression", "txt")))
+			if (self is WorldLoader worldloader && worldloader.playerCharacter != SlugcatStats.Name.Red &&
+				!(worldloader.game.session as StoryGameSession).saveState.guideOverseerDead &&
+				!(worldloader.game.session as StoryGameSession).saveState.miscWorldSaveData.playerGuideState.angryWithPlayer &&
+				(worldloader.world.region.name == "SB" || worldloader.world.region.name == "LF" ||
+				(worldloader.world.region.name == "CC" && (worldloader.game.session as StoryGameSession).saveState.miscWorldSaveData.SSaiConversationsHad < 1)) /*&&
+				onh save data*/)
 
 			{
 				Debug.Log("Spawning Iggy regardless of property");
@@ -182,39 +273,20 @@ namespace ONHStuff
                     wl_self.world.GetAbstractRoom(worldCoordinate).AddEntity(abstractCreature);
                 }
 				(abstractCreature.abstractAI as OverseerAbstractAI).SetAsPlayerGuide();*/
-				wl_self.world.region.regionParams.playerGuideOverseerSpawnChance = 1;
+				worldloader.world.region.regionParams.playerGuideOverseerSpawnChance = 1;
 
 			}
 			orig(self, fresh);
 
-		}
-		public void HoloHook(On.Overseer.orig_TryAddHologram orig, Overseer self, 
-		OverseerHolograms.OverseerHologram.Message message, Creature communicateWith, float importance)
-		{
-			if ((self.hologram.message == OverseerHolograms.OverseerHologram.Message.ForcedDirection))
-			{ }
-		
-		}
-
-		public void ONHProgressionSave(On.Room.orig_Loaded orig, Room self)
-		{
-			if (self.abstractRoom.name == "FN_A15")
-			{
-				string save = LoadProjFile("ONHProgression", "txt");
-				if (!File.Exists(save))
-				{ File.Create(LoadProjFile("ONHProgression", "txt")); }
-			}
-			orig(self);
 		}
 
 		public void StopProjectedImageHook(On.ActiveTriggerChecker.orig_FireEvent orig, ActiveTriggerChecker self)
 		{
 			if (self.eventTrigger.tEvent != null && 
 				(self.eventTrigger.fireChance == 1f || UnityEngine.Random.value < self.eventTrigger.fireChance) &&
-				self.eventTrigger.tEvent.type == TriggeredEvent.EventType.ShowProjectedImageEvent &&
-				PackFromRoom(self.room.abstractRoom.name) == ONHFolder() &&
-				File.Exists(LoadProjFile("ONHProgression","txt"))
-				)
+				self.eventTrigger.tEvent.type == TriggeredEvent.EventType.ShowProjectedImageEvent /*&&
+				onh room */
+                )
             {
 				Debug.Log("ONH has already been visited!");
 				self.Destroy();
@@ -222,9 +294,6 @@ namespace ONHStuff
             }
 			orig(self);
 		}
-
-		
-		
 
 		public void PointerHook(On.OverseerHolograms.OverseerHologram.ForcedDirectionPointer.orig_ctor orig,
 			OverseerHolograms.OverseerHologram.ForcedDirectionPointer Self,
@@ -234,20 +303,14 @@ namespace ONHStuff
 			//this adds a new sprite when ReliableIggyDirection is set to the new enum
 			//and also remove the default case sprite (which is loaded by the vanilla code)
 
-
-			//but first, run the original code
 			orig(Self, overseer, message, communicateWith, importance);
 
-			//I don't know if these are totally necessary, but hey, safety first
-			Self.direction = overseer.AI.communication.forcedDirectionToGive;
-			string elementName = "GuidanceSlugcat";
-
-
-			//If it matches the new enum...
-			if (Self.direction.data.symbol == ONHStuff.ONHStuffEnums.Grapple)
+			if (Self.direction.data.symbol == ONHStuffEnums.Grapple)
 			{
-				//remove the default
-				Self.symbol = new OverseerHolograms.OverseerHologram.Symbol(Self, Self.totalSprites, elementName);
+                string elementName = "GuidanceSlugcat";
+
+                //remove the default
+                Self.symbol = new OverseerHolograms.OverseerHologram.Symbol(Self, Self.totalSprites, elementName);
 				(Self as OverseerHolograms.OverseerHologram)?.parts.Remove(Self.symbol);
 				Self.totalSprites -= Self.symbol.totalSprites;
 
@@ -287,47 +350,6 @@ namespace ONHStuff
 			}
 		}
 
-
-		/// <summary>
-		/// returns the path to any PROJ files, relative to the pack folder of the current room
-		/// </summary>
-
-		public static string LoadProjFile(string fileName, string Type)
-		{
-			string packPath = ONHFolder();
-			if (packPath == null)
-			{ return null; }
-			string	result = string.Concat(new object[]
-				{
-				Custom.RootFolderDirectory(),
-				Path.DirectorySeparatorChar,
-				"Projections",
-				Path.DirectorySeparatorChar,
-				fileName,
-				"_PROJ.",
-				Type
-				});
-			
-			return result;
-		}
-		
-		
-
-		/// <summary>
-		/// returns the pack name, or null if the room is vanilla
-		/// </summary>
-		public static string PackFromRoom(string roomname)
-		{
-			
-			return null;
-
-		}
-
-		public static string ONHFolder()
-		{
-			return null;
-
-		}
 
 		public static List<string> ONHRegions = new List<string>() {
 			"FN",

@@ -18,13 +18,27 @@ namespace ONHStuff
             Debug.Log("ONHCreatureBehaviors");
             On.Vulture.ctor += Vulture_ctor;
             On.VultureAbstractAI.AddRandomCheckRoom += VultureAbstractAI_AddRandomCheckRoom;
-            On.AbstractCreatureAI.WantToStayInDenUntilEndOfCycle += AbstractCreatureAI_WantToStayInDenUntilEndOfCycle;
-            On.AbstractCreature.WantToStayInDenUntilEndOfCycle += AbstractCreature_WantToStayInDenUntilEndOfCycle;
-            On.Region.ctor += Region_ctor1;
-            Debug.Log("ONHCreatureBehaviors Is Finished");
 
             On.ScavengerAbstractAI.TryAssembleSquad += ScavengerAbstractAI_TryAssembleSquad;
-            On.DaddyCorruption.AIMapReady += DaddyCorruption_AIMapReady;
+
+            //I don't think this actually does anything
+            //On.DaddyCorruption.AIMapReady += DaddyCorruption_AIMapReady;
+
+            On.StaticWorld.InitStaticWorld += StaticWorld_InitStaticWorld;
+        }
+
+        private static void StaticWorld_InitStaticWorld(On.StaticWorld.orig_InitStaticWorld orig)
+        {
+            orig();
+            try {
+                //lol
+                StaticWorld.EstablishRelationship(CreatureTemplate.Type.CicadaA, CreatureTemplate.Type.MirosBird, new CreatureTemplate.Relationship(CreatureTemplate.Relationship.Type.Afraid, 1f));
+                StaticWorld.EstablishRelationship(CreatureTemplate.Type.CicadaB, CreatureTemplate.Type.MirosBird, new CreatureTemplate.Relationship(CreatureTemplate.Relationship.Type.Afraid, 1f));
+                StaticWorld.EstablishRelationship(CreatureTemplate.Type.LizardTemplate, CreatureTemplate.Type.MirosBird, new CreatureTemplate.Relationship(CreatureTemplate.Relationship.Type.Afraid, 0.9f));
+
+            }
+
+            catch (Exception e) { Debug.LogError("Error in ONH StaticWorld, non-fatal\n"+e.ToString()); }
         }
 
         private static void DaddyCorruption_AIMapReady(On.DaddyCorruption.orig_AIMapReady orig, DaddyCorruption self)
@@ -247,31 +261,6 @@ namespace ONHStuff
                 }
             }
         }
-
-        private static void Region_ctor1(On.Region.orig_ctor orig, Region self, string name, int firstRoomIndex, int regionNumber, SlugcatStats.Name storyIndex)
-        {
-            orig(self, name, firstRoomIndex, regionNumber, storyIndex);
-            HasRain = name != "FN";
-        }
-
-        private static bool AbstractCreature_WantToStayInDenUntilEndOfCycle(On.AbstractCreature.orig_WantToStayInDenUntilEndOfCycle orig, AbstractCreature self)
-        {
-			if (HasRain)
-			{ return orig(self); }
-
-			else
-			{ return self.state.dead || (self.state is HealthState && (self.state as HealthState).health < 0.85f); }
-		}
-
-		private static bool AbstractCreatureAI_WantToStayInDenUntilEndOfCycle(On.AbstractCreatureAI.orig_WantToStayInDenUntilEndOfCycle orig, AbstractCreatureAI self)
-        {
-			if (HasRain)
-			{ return orig(self); }
-
-			else
-			{ return self.parent.state.dead || (self.parent.state is HealthState && (self.parent.state as HealthState).health < 0.85f); }
-        }
-
 
         private static void VultureAbstractAI_AddRandomCheckRoom(On.VultureAbstractAI.orig_AddRandomCheckRoom orig, VultureAbstractAI self)
         {
