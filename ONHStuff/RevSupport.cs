@@ -181,7 +181,7 @@ namespace ONHStuff
                 button = false;
             }
 
-            if (self.slugcatStats.name == MoreSlugcats.MoreSlugcatsEnums.SlugcatStatsName.Sofanthiel)
+            if (self.slugcatStats.name == InvJunk.Inv)
             {
                 if (self.room?.world.name == "CF" && !self.Reverse().reverseGravity)
                 {
@@ -203,10 +203,12 @@ namespace ONHStuff
         {
             try
             {
-                CEAssetBundle = AssetBundle.LoadFromFile(AssetManager.ResolveFilePath("AssetBundles/gamer025.rainworldce.assets"));
+                string filePath = AssetManager.ResolveFilePath("AssetBundles/gamer025.rainworldce.assets");
+                if (!File.Exists(filePath)) return;
+                CEAssetBundle = AssetBundle.LoadFromFile(filePath);
                 if (CEAssetBundle == null)
                 {
-                    ONHStuff.plugin._Logger.LogInfo("RainWorldCE: Failed to load AssetBundle from " + AssetManager.ResolveFilePath("AssetBundles/gamer025.rainworldce.assets"));
+                    ONHStuff.plugin._Logger.LogInfo("Failed to load AssetBundle from " + filePath);
                     //UnityEngine.Object.Destroy(this);
                 }
                 ONHStuff.plugin._Logger.LogInfo("Assetbundle content: " + string.Join(", ", CEAssetBundle.GetAllAssetNames()));

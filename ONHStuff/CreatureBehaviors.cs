@@ -15,8 +15,7 @@ namespace ONHStuff
     {
         public static void ApplyHooks()
         {
-            Debug.Log("ONHCreatureBehaviors");
-            On.Vulture.ctor += Vulture_ctor;
+            On.VultureAbstractAI.ctor += VultureAbstractAI_ctor;
             On.VultureAbstractAI.AddRandomCheckRoom += VultureAbstractAI_AddRandomCheckRoom;
 
             On.ScavengerAbstractAI.TryAssembleSquad += ScavengerAbstractAI_TryAssembleSquad;
@@ -25,6 +24,23 @@ namespace ONHStuff
             //On.DaddyCorruption.AIMapReady += DaddyCorruption_AIMapReady;
 
             On.StaticWorld.InitStaticWorld += StaticWorld_InitStaticWorld;
+            On.Deer.Act += Deer_Act;
+        }
+
+
+        private static void Deer_Act(On.Deer.orig_Act orig, Deer self, bool eu, float support, float forwardPower)
+        {
+            orig(self, eu, support, forwardPower);
+            if (self.eatCounter == 50)
+            {
+                if (self.eatObject == null || self.room?.abstractRoom.name.ToLower() != "depot" || !self.room.game.IsArenaSession)
+                { return; }
+
+                if (self.State.socialMemory == null) self.State.socialMemory = new SocialMemory();
+
+                self.State.socialMemory.GetOrInitiateRelationship(self.room.game.GetArenaGameSession.Players[0].ID).like += 0.9f;
+                Debug.Log($"deer happiness score: " + self.State.socialMemory.GetOrInitiateRelationship(self.room.game.Players[0].ID).like);
+            }
         }
 
         private static void StaticWorld_InitStaticWorld(On.StaticWorld.orig_InitStaticWorld orig)
@@ -264,7 +280,7 @@ namespace ONHStuff
 
         private static void VultureAbstractAI_AddRandomCheckRoom(On.VultureAbstractAI.orig_AddRandomCheckRoom orig, VultureAbstractAI self)
         {
-            if (self.parent.realizedCreature is Vulture vul && vul.Perception().Value != 1)
+            if (self.parent.abstractAI is not VultureAbstractAI vul || vul.Perception().Value != 1)
             {
                 orig(self);
                 return;
@@ -308,10 +324,10 @@ namespace ONHStuff
             orig(self);
         }
 
-        private static void Vulture_ctor(On.Vulture.orig_ctor orig, Vulture self, AbstractCreature abstractCreature, World world)
+        private static void VultureAbstractAI_ctor(On.VultureAbstractAI.orig_ctor orig, VultureAbstractAI self, World world, AbstractCreature abstractCreature)
         {
-            orig(self, abstractCreature, world);
-            string spawnData = self.abstractCreature.spawnData;
+            orig(self, world, abstractCreature);
+            string spawnData = abstractCreature.spawnData;
             if (!string.IsNullOrEmpty(spawnData) && spawnData[0] == '{')
             {
                 string[] array = spawnData.Substring(1, spawnData.Length - 2).Split(new char[]
@@ -337,8 +353,8 @@ namespace ONHStuff
 
 
 		public static bool HasRain = true;
-        public static ConditionalWeakTable<Vulture, StrongBox<float>> _Perception = new();
-        public static StrongBox<float> Perception(this Vulture p) => _Perception.GetValue(p, _ => new(0f));
+        public static ConditionalWeakTable<VultureAbstractAI, StrongBox<float>> _Perception = new();
+        public static StrongBox<float> Perception(this VultureAbstractAI p) => _Perception.GetValue(p, _ => new(0f));
 
     //public static Utils.AttachedField<Vulture, float> Perception = new Utils.AttachedField<Vulture, float>();
     }

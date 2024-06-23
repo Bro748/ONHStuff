@@ -37,12 +37,10 @@ namespace ONHStuff
 			try
 			{
 				plugin = this;
-				On.ModManager.RefreshModsLists += ForcePriority.ModManager_RefreshModsLists;
 				On.RainWorld.OnModsInit += RainWorld_OnModsInit;
 				ReverseCat.Enable();
                 RevSupport.Apply();
 				InvJunk.ApplyHooks();
-                On.Deer.Act += Deer_Act;
                 IL.Player.Update += Player_Update;
                 /* This is called when the mod is loaded. */
                 CreatureBehaviors.ApplyHooks();
@@ -82,20 +80,6 @@ namespace ONHStuff
             catch (Exception e) { Logger.LogError(e); }
 			}
 
-        private void Deer_Act(On.Deer.orig_Act orig, Deer self, bool eu, float support, float forwardPower)
-        {
-			orig(self, eu, support, forwardPower);
-			if (self.eatCounter == 50)
-			{
-                if (self.eatObject == null || self.room?.abstractRoom.name.ToLower() != "depot" || !self.room.game.IsArenaSession)
-                { return; }
-
-                if (self.State.socialMemory == null) self.State.socialMemory = new SocialMemory();
-
-                self.State.socialMemory.GetOrInitiateRelationship(self.room.game.GetArenaGameSession.Players[0].ID).like += 0.9f;
-                Debug.Log($"deer happiness score: " + self.State.socialMemory.GetOrInitiateRelationship(self.room.game.Players[0].ID).like);
-            }
-        }
 
         /// <summary>
         /// allows sheltering in crawl hole shelters
@@ -190,17 +174,17 @@ namespace ONHStuff
         {
 			orig(self);
 			try { 
-            ForcePriority.CheckIfFileForceOverrideIsNecessary();
             //ForcePriority.CheckIfMapsCopyShouldBeDoneAndDoIt();
             }
             catch (Exception e) { Logger.LogError(e); }
             try
             {
-                ONHStuffEnums.UnregisterValues();
-                ONHStuffEnums.RegisterValues();
                 if (init) return;
 				init = true;
                 RevSupport.LoadBundle(self);
+
+				if (DIGrief.GriefNeeded())
+				{ DIGrief.ApplyHooks(); }
             }
 			catch (Exception e) { Logger.LogError(e); }
 		}
@@ -218,17 +202,8 @@ namespace ONHStuff
 
 				if (slugcat == MoreSlugcats.MoreSlugcatsEnums.SlugcatStatsName.Rivulet && !self.world.game.GetStorySession.saveState.miscWorldSaveData.pebblesEnergyTaken)
 				{
-					bool useRegularCycle = false;
-					foreach (string region in ONHRegions)
-					{
-						if (self.world.region.name == region && region != "AY")
-						{ useRegularCycle = true; break; }
-					}
-
-					if (useRegularCycle)
-					{
-						return orig(self) * 2;
-					}
+                    if (self.world.region.name != "AY" && ONHRegions.Contains(self.world.region.name))
+                    { return orig(self) * 2; }
 				}
 			}
             return orig(self);
@@ -344,12 +319,11 @@ namespace ONHStuff
 
 		public void RainStopSongHook(On.Music.MusicPlayer.orig_RainRequestStopSong orig, Music.MusicPlayer self)
 		{
-			if (self.song != null && self.song.name != "Sweet Null")
+			if (self.song == null || self.song.name != "Sweet Null")
 			{
 				orig(self);
 			}
 		}
-
 
 		public static List<string> ONHRegions = new List<string>() {
 			"FN",
@@ -363,20 +337,9 @@ namespace ONHStuff
 			"VU"
 		};
 
-
-
 		public static class ONHStuffEnums
 		{
-			public static ReliableIggyDirection.ReliableIggyDirectionData.Symbol Grapple;
-			public static void RegisterValues()
-			{
-				Grapple = new ReliableIggyDirection.ReliableIggyDirectionData.Symbol("Grapple", true);
-            }
-
-			public static void UnregisterValues()
-			{
-				if (Grapple != null) { Grapple.Unregister(); Grapple = null; }
-			}
+			public static ReliableIggyDirection.ReliableIggyDirectionData.Symbol Grapple = new("Grapple", true);
 		}
 	}
 
